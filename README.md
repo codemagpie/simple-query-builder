@@ -31,3 +31,8 @@ To use:
             ->forPage(1, 10);
 // This is similar to "where id in (1, 2) and name = 'test' or (age > 10 or age < 8) order by id desc limit 10"
 ```
+## Support
+1. supports convent [ruflin/elastica](https://packagist.org/packages/ruflin/elastica) query, use:
+```php
+$query = UserQuery::build()->whereEqual('name', 'test')->bindElasticaQueryBuilder(new \Elastica\Query());
+```
