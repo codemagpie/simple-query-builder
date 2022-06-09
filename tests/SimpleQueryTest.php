@@ -16,6 +16,10 @@ use CodeMagpie\SimpleQueryBuilder\OrderBy;
 use CodeMagpie\SimpleQueryBuilder\Pagination;
 use CodeMagpie\SimpleQueryBuilderTests\Stubs\UserQuery;
 use Elastica\Query;
+use Hyperf\Database\ConnectionInterface;
+use Hyperf\Database\Query\Builder as QueryBuilder;
+use Hyperf\Database\Query\Grammars\Grammar;
+use Hyperf\Database\Query\Processors\Processor;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -104,6 +108,39 @@ class SimpleQueryTest extends TestCase
         $bool->addShould($should3);
 
         $compareQuery->setQuery($bool)->setFrom(0)->setSize(3)->addSort(['id' => 'desc'])->addSort(['age' => 'asc']);
+
+        self::assertEquals($compareQuery, $query);
+    }
+
+    public function testBindHyperfQueryBuilder(): void
+    {
+        $connection = $this->createMock(ConnectionInterface::class);
+        $grammar = $this->createMock(Grammar::class);
+        $processor = $this->createMock(Processor::class);
+
+        $query = UserQuery::build()
+            ->whereIn('id', [1, 2])
+            ->whereEqual('name', 'test')
+            ->addNestedOrWhere(function ($query) {
+                $query->whereGreat('age', 10)->orWhereLess('age', 8);
+            })
+            ->orderByDesc('id')
+            ->orderByDesc('name')
+            ->orderBy('age')
+            ->forPage(1, 10)
+            ->bindHyperfQueryBuilder(new QueryBuilder($connection, $grammar, $processor));
+
+        $compareQuery = new QueryBuilder($connection, $grammar, $processor);
+        $compareQuery->whereIn('id', [1, 2])
+            ->where('name', 'test')
+            ->orWhere(function ($query) {
+                $query->where('age', '>', 10)->orWhere('age', '<', 8);
+            })
+            ->orderByDesc('id')
+            ->orderByDesc('name')
+            ->orderBy('age')
+            ->forPage(1, 10);
+
 
         self::assertEquals($compareQuery, $query);
     }
