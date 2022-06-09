@@ -13,6 +13,7 @@ namespace CodeMagpie\SimpleQueryBuilder;
 
 use Closure;
 use CodeMagpie\SimpleQueryBuilder\BindTrait\BindElasticaQueryBuilderTrait;
+use CodeMagpie\SimpleQueryBuilder\BindTrait\BindHyperfQueryBuilderTrait;
 use CodeMagpie\SimpleQueryBuilder\Constants\Boolean;
 use CodeMagpie\SimpleQueryBuilder\Constants\Direction;
 use CodeMagpie\SimpleQueryBuilder\Constants\Operator;
@@ -58,6 +59,7 @@ use CodeMagpie\SimpleQueryBuilder\Exception\SimpleQueryException;
 abstract class AbstractSimpleQuery
 {
     use BindElasticaQueryBuilderTrait;
+    use BindHyperfQueryBuilderTrait;
 
     /**
      * @var string[] allow the query field, ['*'] is allow all
