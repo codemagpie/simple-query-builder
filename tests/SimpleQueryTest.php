@@ -15,6 +15,7 @@ use CodeMagpie\SimpleQueryBuilder\Constants\Direction;
 use CodeMagpie\SimpleQueryBuilder\OrderBy;
 use CodeMagpie\SimpleQueryBuilder\Pagination;
 use CodeMagpie\SimpleQueryBuilderTests\Stubs\UserQuery;
+use Elastica\Query;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -58,5 +59,52 @@ class SimpleQueryTest extends TestCase
     {
         $this->expectErrorMessage('illegal where boolean aa');
         UserQuery::build()->whereEqual('id', 1)->where('name', '=', '1111', 'aa');
+    }
+
+    public function testBindElasticaQueryBuilder(): void
+    {
+        $query = UserQuery::build()
+            ->whereEqual('id', 1)
+            ->whereBetween('id', [1, 2])
+            ->whereIn('id', [3, 2])
+            ->whereLike('name', 'hh')
+            ->whereLeftLike('name', 'xx')
+            ->orWhereEqual('age', 3)
+            ->addNestedOrWhere(function (UserQuery $query) {
+                $query->whereLess('age', 6)->orWhereIsNotNull('age')->addNestedWhere(function (UserQuery $query) {
+                    $query->whereEqual('name', 8)->orWhereEqual('age', 9);
+                });
+            })
+            ->forPage(1, 3)
+            ->orderByDesc('id')
+            ->orderBy('age')
+            ->bindElasticaQueryBuilder(new Query());
+
+        $compareQuery = new Query();
+        $bool = new Query\BoolQuery();
+        $should1 = new Query\BoolQuery();
+        $should1->addMust(new Query\Term(['id' => 1]));
+        $should1->addMust(new Query\Range('id', ['gte' => 1, 'lte' => 2]));
+        $should1->addMust(new Query\Terms('id', [3, 2]));
+        $should1->addMust(new Query\MatchPhrase('name', 'hh'));
+        $should1->addMust(new Query\MatchPhrasePrefix('name', 'xx'));
+        $bool->addShould($should1);
+
+        $bool->addShould(new Query\Term(['age' => 3]));
+
+        $should3 = new Query\BoolQuery();
+        $should3->addShould(new Query\Range('age', ['lt' => 6]));
+        $should31 = new Query\BoolQuery();
+        $should31->addMust((new Query\BoolQuery())->addMustNot(new Query\Exists('age')));
+        $should32 = new Query\BoolQuery();
+        $should32->addShould(new Query\Term(['name' => 8]));
+        $should32->addShould(new Query\Term(['age' => 9]));
+        $should31->addMust($should32);
+        $should3->addShould($should31);
+        $bool->addShould($should3);
+
+        $compareQuery->setQuery($bool)->setFrom(0)->setSize(3)->addSort(['id' => 'desc'])->addSort(['age' => 'asc']);
+
+        self::assertEquals($compareQuery, $query);
     }
 }
